@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editors / OS
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Private/raw research data
+data/raw/
+data/private/
+
+# Prepared/generated ML data
+ml_prepared/
+result_new/
+afm_from_ml/
+
+# Generated experiment directories
+results_sparse_reconstruction/
+results_z_selection/
+results_robustness/
+results_spatial_holdout/
+
+# Large numerical outputs and caches
+*.npy
+*.npz
+gridFF.npy
+lvec.npy
+
+# Generated PP-AFM output trees
+relax/
+relax_all/
+combined_Ez/
+
+# Temporary files
+tmp/
+temp/
+
+# Local starter-pack copy
+afm_dft_sparse_ml_repo_starter/
+afm_dft_sparse_ml_repo_starter.zip
