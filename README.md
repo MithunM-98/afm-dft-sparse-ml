@@ -5,7 +5,7 @@ This project investigates whether complete DFT tip–sample interaction-energy p
 The underlying calculations contain interaction energies sampled at 45 vertical tip–sample separations,
 
 \[
-z = 1.6, 1.7, \ldots, 6.0\ \mathrm{\AA},
+z = 1.6, 1.7,........, 5.9, 6.0\ \mathrm{\AA},
 \]
 
 for many non-uniformly distributed lateral sampling positions \(p_i=(x_i,y_i)\). The original interaction-energy data are used to build a continuous 3D potential-energy landscape for probe-particle AFM (PP-AFM) simulations.
