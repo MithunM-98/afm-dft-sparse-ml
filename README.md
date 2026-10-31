@@ -1,93 +1,878 @@
 # Sparse Profile Reconstruction with Machine Learning
 
-This project explores how to reconstruct a high-dimensional response curve from a small subset of strategically selected observations.
+**Feature selection, dimensionality reduction, multi-output regression, and robust validation on expensive scientific simulation data.**
 
-The dataset contains 45-dimensional energy profiles generated from computational simulations. Because evaluating every point in a profile can be expensive, the ML objective is:
+This project investigates whether a **high-dimensional response profile can be reconstructed from only a small subset of strategically selected observations**.
 
-> **Can we reconstruct the complete 45-point profile using only a small number of informative measurements?**
+The original dataset contains profiles with **45 measurements per sample**. Rather than evaluating all 45 positions, the goal is to identify a small number of informative measurements and use machine learning to reconstruct the complete profile.
 
-## Highlights
+The central ML question is:
 
-- Reduced the required input from **45 points to 6 selected points**.
-- Used **PCA** to identify strong low-dimensional structure in the response profiles.
-- Trained a **multi-output Ridge regression** model to predict the complete 45-dimensional profile.
-- Used **greedy forward feature selection with cross-validation** to identify the most informative input positions.
-- Compared learned feature selection against an **evenly spaced baseline**.
-- Evaluated robustness across **10 independent train/test splits**.
-- Performed **spatial holdout validation** to test generalization to unseen regions.
-- Preserved complete profiles during train/test splitting to avoid data leakage.
+> **Can we reconstruct a 45-dimensional response vector accurately using only a small subset of intelligently selected input features?**
 
-For the initial validation system, the first 3 principal components explained approximately **99.78% of the standardized variance**.
+---
 
-Using only 6 selected observations:
+## Key results
 
-- selected-feature Ridge MAE: **0.00623 ± 0.00103**
-- evenly spaced Ridge MAE: **0.04719 ± 0.00479**
-- average relative MAE improvement: **86.74 ± 2.19%**
+For the initial benchmark system:
 
-Spatial holdout validation achieved:
+- **151 complete response profiles**
+- **45 measurements per profile**
+- **3 principal components explain 99.78%** of the standardized profile variance
+- A **multi-output Ridge regression** model reconstructs the complete 45-dimensional profile
+- **Greedy forward feature selection** identifies the most informative measurement positions
+- Model performance is compared against a simple **evenly spaced sampling baseline**
 
-- selected-feature MAE: **0.00742 ± 0.00244**
-- evenly spaced MAE: **0.04676 ± 0.01420**
+Using only **6 selected measurements instead of all 45**:
 
-The six selected observations correspond to **13.3% of the original input positions**, reducing the number of sampled positions by **86.7%**.
+### Repeated random train/test evaluation
+
+Across 10 independent train/test splits:
+
+| Method | MAE |
+|---|---:|
+| Selected features + Ridge | **0.00623 ± 0.00103** |
+| Evenly spaced features + Ridge | **0.04719 ± 0.00479** |
+
+Average relative MAE reduction:
+
+**86.74 ± 2.19%**
+
+### Spatial holdout evaluation
+
+Using five spatially separated holdout regions:
+
+| Method | MAE |
+|---|---:|
+| Selected features + Ridge | **0.00742 ± 0.00244** |
+| Evenly spaced features + Ridge | **0.04676 ± 0.01420** |
+
+The selected model remained substantially better than the evenly spaced baseline when evaluated on spatial regions excluded from training.
+
+### Sampling reduction
+
+Six observations correspond to:
+
+- **13.3% of the original 45 measurement positions**
+- **86.7% fewer sampled positions**
+
+This does **not** imply an identical 86.7% reduction in computational wall time, because the cost of the underlying simulation does not necessarily scale linearly with the number of sampled positions.
+
+---
+
+## ML skills demonstrated
+
+This project implements an end-to-end machine-learning workflow for sparse reconstruction of structured, high-dimensional data.
+
+### Modeling
+
+- Supervised learning
+- Multi-output regression
+- Ridge regression and regularization
+- Dimensionality reduction using PCA
+- Reconstruction of high-dimensional continuous profiles
+
+### Feature selection and experimental design
+
+- Greedy forward feature selection
+- Data-driven measurement selection
+- Identification of informative input positions
+- Comparison against a conventional evenly spaced baseline
+- Sparse sensing / experimental-design formulation
+
+### Model evaluation
+
+- Train/test separation at the complete-profile level
+- Cross-validation for feature selection
+- Repeated independent train/test experiments
+- Spatial holdout validation
+- Baseline comparison
+- Error analysis using MAE
+- Data-leakage prevention
+
+### ML engineering
+
+- Automated preprocessing of structured simulation data
+- Validation of input consistency
+- Reproducible experiment scripts
+- Export of model predictions in the original data format
+- Downstream validation through an independent simulation pipeline
+
+### Tools
+
+- Python
+- NumPy
+- pandas
+- SciPy
+- scikit-learn
+- Matplotlib
+- Git
+- GitHub
+
+---
 
 ## ML problem formulation
 
-Each sample is represented by a full response vector
+Each sample is represented by a complete response vector:
 
 \[
-\mathbf{y} =
-[y_1, y_2, \ldots, y_{45}]
+\mathbf{y}
+=
+[y_1,y_2,\ldots,y_{45}]
 \]
 
-and only a subset of entries is observed:
+Instead of observing every element, only a subset is provided to the model:
 
 \[
-\mathbf{x} =
-[y_{i_1}, y_{i_2}, \ldots, y_{i_k}].
+\mathbf{x}
+=
+[y_{i_1},y_{i_2},\ldots,y_{i_k}]
 \]
 
-The model learns the mapping
+where:
 
 \[
-\mathbf{x} \rightarrow \mathbf{y},
+k \ll 45
 \]
 
-where \(k \ll 45\).
+The model learns the mapping:
 
-This combines three common machine-learning problems:
+\[
+\mathbf{x}
+\rightarrow
+\mathbf{y}
+\]
 
-- **dimensionality reduction**
-- **multi-output regression**
-- **feature / measurement selection**
+For example:
 
-## Why this matters
+```text
+Complete profile
+45 measurements
+        ↓
+Select 6 informative measurements
+        ↓
+[x1, x2, x3, x4, x5, x6]
+        ↓
+Multi-output regression
+        ↓
+Reconstructed 45-dimensional profile
+```
 
-Many scientific and engineering workflows contain expensive measurements or simulations sampled over a grid, time axis, frequency range, or operating condition.
+This formulation combines three common ML problems:
 
-If the response is highly correlated and low-dimensional, it may be possible to observe only a small subset of positions and reconstruct the rest with machine learning.
+1. **dimensionality reduction**
+2. **feature selection**
+3. **multi-output regression**
 
-This project treats the selection of those observations as an experimental-design problem rather than simply using uniformly spaced samples.
+---
+
+## Why this problem matters
+
+Many scientific and engineering workflows involve expensive measurements or simulations collected over:
+
+- time
+- distance
+- frequency
+- temperature
+- pressure
+- spatial position
+- operating conditions
+
+Often, neighboring measurements are strongly correlated.
+
+If the underlying response has a low-dimensional structure, evaluating every possible position may be unnecessary.
+
+A machine-learning system can instead identify the most informative measurements and reconstruct the missing values.
+
+The general workflow is therefore:
+
+```text
+Expensive high-dimensional measurement
+                  ↓
+        Dimensionality analysis
+                  ↓
+        Sparse feature selection
+                  ↓
+        Multi-output regression
+                  ↓
+        Robust validation
+                  ↓
+      Downstream application test
+```
+
+---
+
+## Dimensionality analysis
+
+Before training a reconstruction model, PCA was used to determine whether the 45-dimensional response profiles contain substantial redundancy.
+
+The profiles were standardized using statistics derived from the training data.
+
+For the initial benchmark system:
+
+| Number of PCs | Explained variance |
+|---:|---:|
+| 1 | 63.39% |
+| 2 | 93.42% |
+| 3 | **99.78%** |
+| 4 | 99.97% |
+| 5 | 99.996% |
+
+The first three principal components therefore capture nearly all of the standardized profile variation.
+
+This strong low-dimensional structure motivated the sparse-reconstruction approach.
+
+![PCA explained variance](figures/pca_explained_variance.png)
+
+---
+
+## Sparse reconstruction models
+
+Several approaches were compared.
+
+### PCHIP interpolation
+
+A shape-preserving cubic interpolation method was used as a non-ML baseline.
+
+It reconstructs missing values using only the observed positions within an individual profile.
+
+### PCA reconstruction
+
+Profiles were represented in a low-dimensional PCA basis.
+
+This tests whether the learned latent structure alone is sufficient for sparse reconstruction.
+
+### Multi-output Ridge regression
+
+The main supervised-learning model uses the selected observations as input features and predicts the entire profile simultaneously.
+
+For \(k\) observed measurements:
+
+\[
+\mathbf{x}
+\in
+\mathbb{R}^{k}
+\]
+
+and the model predicts:
+
+\[
+\hat{\mathbf{y}}
+\in
+\mathbb{R}^{45}
+\]
+
+Ridge regression was chosen deliberately as a simple, regularized, interpretable baseline before introducing more complex models.
+
+---
+
+## Why Ridge regression works well here
+
+The response profiles are:
+
+- smooth,
+- strongly correlated,
+- highly structured,
+- approximately low-dimensional.
+
+Therefore, a complex neural network is not necessarily required.
+
+A regularized linear model can exploit correlations between the measured and unmeasured positions while remaining:
+
+- easy to interpret,
+- computationally inexpensive,
+- stable for relatively small datasets,
+- straightforward to cross-validate.
+
+This is also an example of choosing model complexity based on the structure of the problem rather than automatically using a deep-learning architecture.
+
+---
+
+## Data-driven feature selection
+
+A key part of the project is determining **which measurements should be taken**.
+
+Instead of simply choosing evenly spaced positions, the project uses **greedy forward feature selection**.
+
+Starting with no selected positions:
+
+1. Every remaining candidate measurement is considered.
+2. A Ridge model is evaluated using cross-validation on the training data.
+3. The candidate that produces the lowest reconstruction error is selected.
+4. The procedure repeats until the desired number of measurements is reached.
+
+Conceptually:
+
+```text
+0 selected
+    ↓
+test all 45 candidates
+    ↓
+select best measurement
+    ↓
+test remaining 44
+    ↓
+select next best
+    ↓
+...
+    ↓
+6 informative measurements
+```
+
+For one representative split, six selected positions corresponded to:
+
+```text
+1.6, 1.8, 2.2, 2.4, 3.6, 5.0 Å
+```
+
+The selected positions concentrate measurements in regions where the response varies most strongly while retaining longer-range measurements that help constrain the complete profile.
+
+![Selected positions](figures/selected_z_positions.png)
+
+---
+
+## Selected features vs evenly spaced sampling
+
+A central baseline asks:
+
+> If six measurements are available, is data-driven feature selection actually better than simply sampling six uniformly spaced positions?
+
+The answer was consistently yes for the benchmark system.
+
+![Selected versus evenly spaced MAE](figures/selected_vs_even_mae.png)
+
+As more measurements are added, both approaches improve. However, learned measurement selection achieves substantially lower reconstruction error when the measurement budget is small.
+
+This is important because the practical objective is not merely to reconstruct profiles accurately, but to do so using as few expensive measurements as possible.
+
+---
+
+## Example reconstruction
+
+A representative reconstructed profile using six observations is shown below.
+
+![Example reconstruction](figures/example_reconstruction_k6.png)
+
+The selected measurements serve as sparse inputs, while the model predicts the remaining positions.
+
+---
+
+## Validation strategy
+
+Good performance on a single random train/test split is not sufficient.
+
+Several validation strategies were therefore used.
+
+### 1. Complete-profile train/test splitting
+
+Individual positions from the same profile are **not** randomly distributed across training and test sets.
+
+Instead, complete profiles are assigned to either training or test data.
+
+This prevents direct leakage between observed and hidden measurements belonging to the same response curve.
+
+---
+
+### 2. Cross-validation during feature selection
+
+The measurement positions are chosen using only training data.
+
+The held-out test profiles do not participate in feature selection.
+
+This prevents the final evaluation set from influencing the selected measurement positions.
+
+---
+
+### 3. Repeated random train/test experiments
+
+The entire feature-selection and evaluation process was repeated across **10 independent train/test splits**.
+
+The selected-feature model achieved:
+
+\[
+MAE =
+0.00623 \pm 0.00103
+\]
+
+compared with:
+
+\[
+MAE =
+0.04719 \pm 0.00479
+\]
+
+for evenly spaced sampling.
+
+The average improvement was:
+
+\[
+86.74 \pm 2.19\%
+\]
+
+The repeated experiments reduce dependence on a single favorable split.
+
+---
+
+## Feature-selection stability
+
+The most informative measurement positions were also examined across repeated experiments.
+
+Several positions were repeatedly selected, suggesting that the model is identifying reproducible structure rather than arbitrary features from a single data split.
+
+![Feature selection frequency](figures/z_selection_frequency.png)
+
+For example, the measurement near 1.8 Å was selected in all 10 repeated experiments in the initial benchmark.
+
+---
+
+## Spatial holdout validation
+
+Random train/test splitting can still produce training and test samples from nearby spatial locations.
+
+To create a more difficult test, the lateral sampling coordinates were partitioned into compact spatial regions using geometry only.
+
+One complete region was held out at a time.
+
+```text
+Spatial coordinates
+       ↓
+geometry-based clustering
+       ↓
++----------+----------+
+| training | held-out |
+| regions  |  region  |
++----------+----------+
+       ↓
+train + feature selection
+       ↓
+evaluate unseen region
+```
+
+The response values were **not** used to define the regions.
+
+![Spatial holdout regions](figures/spatial_regions.png)
+
+Across five spatial holdouts:
+
+\[
+MAE_{\text{selected}}
+=
+0.00742 \pm 0.00244
+\]
+
+compared with:
+
+\[
+MAE_{\text{even}}
+=
+0.04676 \pm 0.01420
+\]
+
+for evenly spaced measurements.
+
+![Spatial holdout MAE](figures/spatial_holdout_mae.png)
+
+The selected-feature model therefore remained substantially better than the baseline even when entire spatial regions were excluded from training.
+
+---
+
+## Data preprocessing pipeline
+
+The raw data consist of response values associated with:
+
+- lateral sample position,
+- vertical measurement index,
+- response value.
+
+The preprocessing pipeline converts these files into:
+
+```text
+raw files
+    ↓
+validation
+    ↓
+coordinate mapping
+    ↓
+long-format table
+    ↓
+Np × 45 response matrix
+    ↓
+ML-ready dataset
+```
+
+For each dataset, the preprocessing code generates:
+
+- validated metadata
+- coordinate tables
+- long-format data
+- response matrices
+- diagnostic plots
+
+The preprocessing pipeline successfully parsed **132 sample–tip datasets**.
+
+Cross-system ML generalization has not yet been established, so the current headline results should not be interpreted as universal performance across unseen chemical systems.
+
+---
 
 ## Domain context
 
-The data in this project come from computational chemistry simulations of tip–sample interaction energies used in probe-particle atomic force microscopy.
+The application data come from **computational chemistry**.
 
-Each profile contains interaction energies evaluated at 45 vertical separations from 1.6 Å to 6.0 Å.
+The response profiles represent interaction energies between an AFM probe and a molecular sample calculated at multiple vertical separations using electronic-structure simulations.
 
-The chemistry provides the application domain, but the ML workflow itself is general:
+For the benchmark data, each profile contains 45 interaction-energy values:
 
 ```text
-expensive high-dimensional profile
-            ↓
-dimensionality analysis
-            ↓
-sparse feature selection
-            ↓
-multi-output regression
-            ↓
-robust validation
-            ↓
-downstream physical evaluation
+z00 = 1.6 Å
+z01 = 1.7 Å
+...
+z44 = 6.0 Å
 ```
+
+Each profile is associated with one lateral position:
+
+\[
+p_i = (x_i,y_i)
+\]
+
+The scientific objective is to use these interaction energies to construct a continuous three-dimensional force field for probe-particle atomic force microscopy.
+
+However, the ML methodology is not specific to chemistry.
+
+The same sparse-reconstruction framework could apply to expensive measurements in other domains where responses are highly correlated across an ordered measurement axis.
+
+---
+
+## Data format
+
+The original interaction-energy files have the form:
+
+```text
+p000 z00 ENERGY
+p000 z01 ENERGY
+...
+p000 z44 ENERGY
+
+p001 z00 ENERGY
+...
+```
+
+Each `pXXX` corresponds to one lateral sampling position.
+
+Coordinate files contain:
+
+```text
+type x y
+```
+
+The row ordering defines the mapping:
+
+```text
+row 0 → p000
+row 1 → p001
+...
+```
+
+---
+
+## Exporting reconstructed profiles
+
+Predicted profiles can be exported in the same format as the original simulation data:
+
+```text
+pXXX zXX ENERGY
+```
+
+At the selected measurement positions, the original simulated values are retained.
+
+At hidden positions, the values are reconstructed by the ML model.
+
+For evaluation, out-of-fold predictions can be used so that a profile is not reconstructed by a model trained on that same profile.
+
+This enables direct comparison between:
+
+```text
+original profile
+      vs
+sparse-input + ML reconstructed profile
+```
+
+using the existing downstream scientific software.
+
+---
+
+## Downstream validation
+
+A low reconstruction MAE does not automatically guarantee that the predicted data are useful in the final application.
+
+For this reason, the project also includes a downstream validation stage.
+
+The original workflow is:
+
+```text
+Original simulation data
+          ↓
+     interpolation
+          ↓
+    3D force field
+          ↓
+  PP-AFM simulation
+          ↓
+     AFM image
+```
+
+The ML workflow is:
+
+```text
+Sparse simulated data
+          ↓
+ ML reconstruction
+          ↓
+     interpolation
+          ↓
+    3D force field
+          ↓
+  PP-AFM simulation
+          ↓
+     AFM image
+```
+
+This allows comparison of:
+
+```text
+AFM image from full simulation data
+
+                vs
+
+AFM image from sparse + ML reconstructed data
+```
+
+The purpose is to test whether good predictive performance in energy space translates into acceptable performance in the downstream physical simulation.
+
+---
+
+## Repository structure
+
+```text
+afm-dft-sparse-ml/
+│
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── PROJECT_LAYOUT.md
+│
+├── src/
+│   ├── 01_prepare_data.py
+│   ├── 02_sparse_reconstruction.py
+│   ├── 03_select_z_heights.py
+│   ├── 04_robustness.py
+│   ├── 05_spatial_holdout.py
+│   ├── 07_export_reconstructed_dat.py
+│   └── 08_run_afm_from_reconstructed.py
+│
+├── figures/
+│   ├── example_reconstruction_k6.png
+│   ├── pca_explained_variance.png
+│   ├── selected_vs_even_mae.png
+│   ├── selected_z_positions.png
+│   ├── spatial_holdout_mae.png
+│   ├── spatial_regions.png
+│   └── z_selection_frequency.png
+│
+├── data/
+│   └── example/
+│       └── README.md
+│
+└── results/
+    └── summary_tables/
+```
+
+Large simulation datasets and generated numerical arrays are intentionally excluded from version control.
+
+---
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/MithunM-98/afm-dft-sparse-ml.git
+cd afm-dft-sparse-ml
+```
+
+Create a Python environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Install the ML dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Core dependencies include:
+
+```text
+NumPy
+pandas
+SciPy
+Matplotlib
+scikit-learn
+```
+
+The optional PP-AFM downstream validation requires additional scientific software that is not included in the minimal ML environment.
+
+---
+
+## Typical workflow
+
+The current analysis pipeline follows:
+
+```bash
+python src/01_prepare_data.py
+
+python src/02_sparse_reconstruction.py
+
+python src/03_select_z_heights.py
+
+python src/04_robustness.py
+
+python src/05_spatial_holdout.py
+
+python src/07_export_reconstructed_dat.py --dataset DATASET_NAME
+```
+
+The current research scripts were originally developed in a local computational-science environment and are being progressively refactored toward fully portable command-line interfaces.
+
+---
+
+## Current scope
+
+The strongest validation currently demonstrates:
+
+- reconstruction of unseen complete profiles,
+- repeated train/test robustness,
+- training-only feature selection,
+- spatial generalization to held-out regions,
+- comparison against a simple sampling baseline.
+
+The preprocessing pipeline contains 132 sample–tip datasets, but the current headline reconstruction results are based on an initial benchmark system.
+
+Therefore, this repository does **not yet claim generalization to completely unseen chemical systems**.
+
+---
+
+## Limitations
+
+### Limited chemical generalization
+
+The strongest current tests are within one sample–tip system.
+
+Generalization across different chemical systems remains to be evaluated.
+
+### Dataset size
+
+The number of profiles is relatively small compared with many industrial ML datasets.
+
+This motivated the use of regularized linear models and careful cross-validation rather than unnecessarily complex architectures.
+
+### Feature selection may be system-dependent
+
+The optimal measurement positions could change for substantially different response distributions.
+
+### Prediction accuracy is not the only objective
+
+Low MAE in the reconstructed profile does not necessarily guarantee identical behavior in downstream simulations.
+
+This motivates the additional PP-AFM validation.
+
+### Computational savings require separate benchmarking
+
+Using 6 rather than 45 measurement positions reduces the number of sampled positions by 86.7%, but wall-time savings depend on the cost structure of the underlying simulation.
+
+---
+
+## Future work
+
+Several extensions are planned.
+
+### Cross-system generalization
+
+Train on multiple systems and evaluate reconstruction on completely held-out systems.
+
+### Universal measurement selection
+
+Determine whether one small set of measurement positions performs well across many different datasets.
+
+### Group-based validation
+
+Evaluate generalization when entire molecular samples or probe types are excluded from training.
+
+### Non-linear models
+
+Compare Ridge regression with:
+
+- Random Forests
+- Gradient Boosting
+- neural networks
+- Gaussian-process approaches
+
+when the dataset size supports meaningful evaluation.
+
+### Uncertainty estimation
+
+Estimate predictive uncertainty and use it to determine when additional measurements are necessary.
+
+### Active learning
+
+Choose the next expensive simulation dynamically based on expected information gain or model uncertainty.
+
+### Downstream image comparison
+
+Quantitatively compare PP-AFM outputs generated from:
+
+- full simulation data
+- sparse + ML reconstructed data
+
+using image-level error metrics.
+
+---
+
+## What I learned from this project
+
+This project started from a domain-specific computational-chemistry problem but became an exercise in general machine-learning problem solving.
+
+The key lessons were:
+
+- strong baselines matter,
+- model complexity should match the dataset,
+- leakage can easily produce misleading results,
+- feature-selection procedures must be separated from final evaluation,
+- random splitting is not always sufficient,
+- structured holdout strategies can reveal more realistic generalization behavior,
+- downstream usefulness can matter more than a single ML metric.
+
+The project also demonstrates how domain knowledge can be combined with statistical learning to reduce expensive data acquisition while retaining predictive accuracy.
+
+---
+
+## Data availability
+
+The complete research dataset is not included in this repository.
+
+Only approved example or synthetic data should be published when the underlying simulation data are unpublished or group-owned.
+
+The repository documents the expected input format so the ML workflow can be understood without distributing restricted research data.
+
+---
+
+## Author
+
+**Mithun M**
+
+PhD researcher in computational chemistry transitioning toward machine learning and scientific ML roles.
+
+GitHub: `MithunM-98`
