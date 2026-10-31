@@ -200,7 +200,202 @@ Expensive high-dimensional measurement
       Downstream application test
 ```
 
+## Training, validation, testing, and inference
+
+The workflow explicitly separates **model training, model/feature selection, final evaluation, and inference** to reduce data leakage and produce a more realistic estimate of generalization performance.
+
+### Training
+
+Each complete 45-point response profile is treated as one sample.
+
+For the initial experiments, complete profiles are split into:
+
+```text
+80% training profiles
+20% held-out test profiles
+```
+
+All measurements belonging to a profile remain in the same split.
+
+This is important because randomly splitting individual measurements from the same profile would allow closely related information from one response curve to appear in both training and test data.
+
+The training set is used to:
+
+- fit preprocessing transformations,
+- fit PCA,
+- train Ridge regression models,
+- perform feature selection.
+
+Conceptually:
+
+```text
+Complete profiles
+       ↓
+train/test split
+       ↓
+Training profiles
+       ↓
+model fitting
+```
+
 ---
+
+### Validation
+
+Model and feature-selection decisions are made using only the training data.
+
+A **5-fold cross-validation** procedure is used inside the training set.
+
+For feature selection:
+
+```text
+Training profiles
+       ↓
+5-fold cross-validation
+       ↓
+evaluate candidate measurement positions
+       ↓
+select best position
+       ↓
+repeat
+```
+
+At each feature-selection step, candidate measurement positions are compared according to their cross-validated reconstruction error.
+
+The held-out test profiles are never used to determine which measurements should be selected.
+
+This creates a separation between:
+
+```text
+training
+    ↓
+model fitting
+
+validation
+    ↓
+model / feature selection
+
+test
+    ↓
+final performance estimate
+```
+
+---
+
+### Testing
+
+After the measurement positions have been selected using training-only cross-validation, the resulting model is evaluated on the untouched test profiles.
+
+The main metric is **mean absolute error (MAE)** over the unobserved portions of the reconstructed profile.
+
+For the repeated random-split experiment, the complete procedure is repeated across 10 independent train/test splits:
+
+```text
+Split 1
+training → CV selection → test
+
+Split 2
+training → CV selection → test
+
+...
+
+Split 10
+training → CV selection → test
+```
+
+This provides both an average performance estimate and a measure of variability across different data splits.
+
+A second evaluation uses **spatial holdout testing**, where complete spatial regions are excluded from training.
+
+This tests whether the model can reconstruct profiles from locations that are spatially separated from the training data.
+
+---
+
+### Inference
+
+After a model has been trained, inference requires only the selected sparse measurements for a new profile.
+
+For example, with six selected measurements:
+
+```text
+New profile
+
+Observed:
+E(z1)
+E(z2)
+E(z3)
+E(z4)
+E(z5)
+E(z6)
+
+        ↓
+
+trained Ridge model
+
+        ↓
+
+Predicted complete profile
+
+[E(z0), E(z1), ..., E(z44)]
+```
+
+The inference input therefore has dimension:
+
+\[
+\mathbf{x}_{new} \in \mathbb{R}^{6}
+\]
+
+while the model predicts:
+
+\[
+\hat{\mathbf{y}}_{new} \in \mathbb{R}^{45}.
+\]
+
+The predicted profile can then be exported in the same format as the original simulation data and passed to downstream analysis software.
+
+```text
+6 sparse observations
+        ↓
+ML inference
+        ↓
+45-point reconstructed profile
+        ↓
+downstream simulation / analysis
+```
+
+---
+
+### Evaluation inference vs deployment inference
+
+The project distinguishes between two types of prediction.
+
+**Evaluation predictions** are generated for held-out profiles so that reconstruction accuracy can be measured against known ground truth.
+
+```text
+known full profile
+      ↓
+hide most measurements
+      ↓
+predict hidden measurements
+      ↓
+compare prediction with ground truth
+```
+
+**Deployment inference** represents the intended future use case:
+
+```text
+new expensive sample
+      ↓
+calculate only selected measurements
+      ↓
+trained model
+      ↓
+predict remaining measurements
+```
+
+In this situation, the complete ground-truth profile would not need to be calculated.
+
+The current project primarily validates the first scenario. Generalized deployment to completely unseen chemical systems remains a future extension.---
 
 ## Dimensionality analysis
 
